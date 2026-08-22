@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Locker Game Discovery Simulation</title>
+  <style>
+    :root {
+      --bg: #f7f8fb;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #d1d5db;
+      --accent: #4f46e5;
+      --accent-soft: #eef2ff;
+      --correct: #16a34a;
+      --wrong: #dc2626;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 2rem;
+    }
+    .sub {
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+    .turn {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    button {
+      min-height: 44px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: white;
+      color: var(--text);
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button.primary {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+    button:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+    #feedback {
+      min-height: 24px;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(10, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .locker {
+      min-height: 90px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+      transition: .15s ease;
+    }
+    .locker.selected {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      transform: translateY(-2px);
+    }
+    .locker.correct {
+      outline: 3px solid rgba(22,163,74,.35);
+    }
+    .locker.wrong {
+      outline: 3px solid rgba(220,38,38,.35);
+    }
+    .door {
+      width: 30px;
+      height: 36px;
+      border: 2px solid currentColor;
+      border-radius: 4px;
+      position: relative;
+    }
+    .door::after {
+      content: "";
+      position: absolute;
+      right: 4px;
+      top: 15px;
+      width: 4px;
+      height: 4px;
+      background: currentColor;
+      border-radius: 50%;
+    }
+    textarea {
+      width: 100%;
+      min-height: 90px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 1rem;
+      resize: vertical;
+    }
+    .record-row {
+      padding: 7px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .hidden { display: none; }
+    .reveal {
+      background: #fffdf5;
+      border-color: #e5d7a3;
+    }
+    @media (max-width: 700px) {
+      .grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+      .wrap { padding: 14px; }
+      h1 { font-size: 1.5rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .locker { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>Locker Game Discovery Simulation</h1>
+    <p class="sub">Your job: figure out which lockers each student will touch. Make a prediction first. Then check your thinking.</p>
+
+    <section class="card">
+      <div style="color:var(--muted); font-size:.9rem;">Current turn</div>
+      <div id="studentTitle" class="turn">Student 1</div>
+    </section>
+
+    <div class="controls">
+      <button id="checkBtn" class="primary" type="button">Check My Prediction</button>
+      <button id="clearBtn" type="button">Clear Picks</button>
+      <button id="nextBtn" type="button" disabled>Next Student →</button>
+      <button id="resetBtn" type="button">Start Over</button>
+    </div>
+
+    <div id="feedback" aria-live="polite">Click the lockers you think Student 1 will touch.</div>
+
+    <div id="lockerGrid" class="grid" aria-label="Twenty lockers"></div>
+
+    <section class="card">
+      <div style="font-weight:700; margin-bottom:8px;">What do you notice?</div>
+      <textarea id="noticeBox" placeholder="Write a pattern you notice..."></textarea>
+    </section>
+
+    <section class="card">
+      <div style="font-weight:700; margin-bottom:8px;">Class record</div>
+      <div id="record"></div>
+    </section>
+
+    <section id="revealPanel" class="card reveal hidden">
+      <div style="font-weight:700;">Big idea reveal</div>
+      <p>Look back at your class record. What relationships do you see between the student numbers and the locker numbers they touched?</p>
+      <button id="showWordsBtn" class="primary" type="button">Show the Math Words</button>
+      <div id="mathWords" class="hidden" style="margin-top:14px;">
+        <p>When we look from a <strong>student</strong> to the lockers they touch, those locker numbers are called <strong>multiples</strong>.</p>
+        <p>When we look from a <strong>locker</strong> to all the students who touched it, those student numbers are called <strong>factors</strong>.</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const total = 20;
+    let student = 1;
+    let selected = new Set();
+    let checked = false;
+    const records = [];
+
+    const studentTitle = document.getElementById('studentTitle');
+    const grid = document.getElementById('lockerGrid');
+    const feedback = document.getElementById('feedback');
+    const checkBtn = document.getElementById('checkBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const record = document.getElementById('record');
+    const revealPanel = document.getElementById('revealPanel');
+    const showWordsBtn = document.getElementById('showWordsBtn');
+    const mathWords = document.getElementById('mathWords');
+    const noticeBox = document.getElementById('noticeBox');
+
+    function correctLockers(s) {
+      const arr = [];
+      for (let n = s; n <= total; n += s) arr.push(n);
+      return arr;
+    }
+
+    function renderGrid() {
+      grid.innerHTML = '';
+      const answer = new Set(correctLockers(student));
+
+      for (let i = 1; i <= total; i++) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'locker';
+
+        if (selected.has(i)) btn.classList.add('selected');
+        if (checked) {
+          if (selected.has(i) && answer.has(i)) btn.classList.add('correct');
+          if (selected.has(i) && !answer.has(i)) btn.classList.add('wrong');
+        }
+
+        btn.setAttribute('aria-pressed', selected.has(i) ? 'true' : 'false');
+        btn.innerHTML = '<div>' + i + '</div><div class="door" aria-hidden="true"></div>';
+
+        btn.addEventListener('click', () => {
+          if (checked) return;
+          if (selected.has(i)) selected.delete(i);
+          else selected.add(i);
+          renderGrid();
+        });
+
+        grid.appendChild(btn);
+      }
+    }
+
+    function renderRecord() {
+      if (!records.length) {
+        record.innerHTML = '<div style="color:var(--muted)">Your discoveries will appear here after you check each turn.</div>';
+        return;
+      }
+
+      record.innerHTML = records
+        .map(r => '<div class="record-row"><strong>Student ' + r.student + ':</strong> touched ' + r.lockers.join(', ') + '</div>')
+        .join('');
+    }
+
+    function renderTurn() {
+      studentTitle.textContent = 'Student ' + student;
+      feedback.textContent = 'Click the lockers you think Student ' + student + ' will touch.';
+      selected.clear();
+      checked = false;
+      nextBtn.disabled = true;
+      renderGrid();
+      renderRecord();
+
+      if (student >= 6) revealPanel.classList.remove('hidden');
+      else revealPanel.classList.add('hidden');
+    }
+
+    checkBtn.addEventListener('click', () => {
+      const correct = correctLockers(student);
+      const chosen = Array.from(selected).sort((a,b) => a-b);
+      const isCorrect = chosen.length === correct.length && chosen.every((v,i) => v === correct[i]);
+
+      checked = true;
+      renderGrid();
+
+      if (isCorrect) {
+        feedback.textContent = 'Yes! Your prediction works. What pattern helped you decide?';
+        if (!records.some(r => r.student === student)) {
+          records.push({ student, lockers: correct });
+        }
+        renderRecord();
+        nextBtn.disabled = false;
+      } else {
+        feedback.textContent = 'Not quite yet. Look back at the earlier turns and see what pattern you notice.';
+      }
+    });
+
+    clearBtn.addEventListener('click', () => {
+      if (checked) return;
+      selected.clear();
+      feedback.textContent = 'Try a new prediction.';
+      renderGrid();
+    });
+
+    nextBtn.addEventListener('click', () => {
+      if (student < total) {
+        student++;
+        renderTurn();
+      }
+      if (student === total) nextBtn.textContent = 'Last Student';
+    });
+
+    resetBtn.addEventListener('click', () => {
+      student = 1;
+      selected.clear();
+      checked = false;
+      records.length = 0;
+      noticeBox.value = '';
+      mathWords.classList.add('hidden');
+      showWordsBtn.disabled = false;
+      nextBtn.textContent = 'Next Student →';
+      renderTurn();
+    });
+
+    showWordsBtn.addEventListener('click', () => {
+      mathWords.classList.remove('hidden');
+      showWordsBtn.disabled = true;
+    });
+
+    renderTurn();
+  </script>
+</body>
+</html>
